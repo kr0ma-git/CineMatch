@@ -1,0 +1,29 @@
+{
+  "name": "cinematch",
+  "version": "1.0.0",
+  "description": "CineMatch Backend",
+  "homepage": "https://github.com/kr0ma-git/CineMatch#readme",
+  "bugs": {
+    "url": "https://github.com/kr0ma-git/CineMatch/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/kr0ma-git/CineMatch.git"
+  },
+  "license": "ISC",
+  "author": "kr0ma-git",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.5.0",
+    "nodemon": "^3.1.14",
+    "validator": "^13.15.35"
+  }
+}
