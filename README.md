@@ -13,3 +13,4 @@ Initial Commit:
 
 - Added new endpoints for user-related queries
 - Fixed bugs for the user controller
+- Added bookmark schema
