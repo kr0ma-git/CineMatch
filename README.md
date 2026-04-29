@@ -12,3 +12,4 @@ Initial Commit:
 4/29/2026
 
 - Added new endpoints for user-related queries
+- Fixed bugs for the user controller
