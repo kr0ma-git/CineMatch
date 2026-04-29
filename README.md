@@ -15,3 +15,4 @@ Initial Commit:
 - Fixed bugs for the user controller
 - Added bookmark schema
 - Added review schema
+- Updated user routes
