@@ -5,24 +5,23 @@ const registerUser = async (req, res) => {
         const { username, email, password } = req.body;
 
         if (!username || !email || !password) {
-            return res.status(400).json({ message: "Missing input fields"} );
+            return res.status(404).json({ message: "Missing input fields"} );
         }
 
         const existingEmail = await User.findOne({ email: email.toLowerCase() });
         if (existingEmail) {
-            return res.status(400).json({ message: "Email already taken"} );
+            return res.status(409).json({ message: "Email already taken"} );
         }
 
         const existingUsername = await User.findOne({ username: username });
         if (existingUsername) {
-            return res.status(400).json({ message: "Username already taken"} );
+            return res.status(409).json({ message: "Username already taken"} );
         }
 
         const user = await User.create({
             username,
             email: email.toLowerCase(),
             password_hash: password,
-            loggedIn: false,
         })
 
         return res.status(201).json({
@@ -34,7 +33,7 @@ const registerUser = async (req, res) => {
             }
         });
     } catch(error) {
-        res.status(500).json({ message: "Internal server error", error: error.message});
+        return res.status(500).json({ message: "Internal server error", error: error.message});
     }
 }
 
@@ -46,15 +45,15 @@ const loginUser = async (req, res) => {
         });
 
         if (!user) {
-            return res.status(404).json({ message: "Incorrect username or password" });
+            return res.status(401).json({ message: "Incorrect username or password" });
         }
 
         const isMatching = await user.comparePassword(password);
         if (!isMatching) {
-            return res.status(404).json({ message: "Incorrect username or password" })
+            return res.status(401).json({ message: "Incorrect username or password" })
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             message: "User logged in",
             user: {
                 id: user._id,
@@ -63,7 +62,7 @@ const loginUser = async (req, res) => {
             }
         });
     } catch(error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 }
 
@@ -74,12 +73,12 @@ const logoutUser = async (req, res) => {
         const user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
-            res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "User not found" });
         }
 
-        res.status(200).json({ message: "Logout Successful" });
+        return res.status(200).json({ message: "Logout Successful" });
     } catch(error) {
-        res.status(500).json({ message: "Internal Server Error", error: error.message });
+        return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 }
 
@@ -92,12 +91,12 @@ const getUserById = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             message: "User found",
             user,
         });
     } catch(error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 }
 
@@ -106,28 +105,28 @@ const getUserByEmail = async (req, res) => {
         const { email } = req.params;
         const user = await User.findOne({
             email: email.toLowerCase()
-        });
+        }).select("-password_hash");
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             message: "User found",
             user,
         });
     } catch(error) {
-        res.status(500).json({ message: "Internal server error", error: error.message});
+        return res.status(500).json({ message: "Internal server error", error: error.message});
     }
 }
 
 const getAllUsers = async (req, res) => {
     try {
         // Does not include passwords
-        const userData = await User.find().select("-password");
+        const userData = await User.find().select("-password_hash");
 
         if (userData.length === 0) {
-            res.status(404).json({ message: "No users in the database" });
+            return res.status(404).json({ message: "No users in the database" });
         }
 
         return res.status(200).json({
@@ -135,7 +134,7 @@ const getAllUsers = async (req, res) => {
             userData,
         })
     } catch(error) {
-        res.status(500).json({ message: "Internal server error", error: error.message});
+        return res.status(500).json({ message: "Internal server error", error: error.message});
     }
 }
 
