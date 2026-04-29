@@ -73,7 +73,7 @@ const logoutUser = async (req, res) => {
         const user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "Invalid user session" });
         }
 
         return res.status(200).json({ message: "Logout Successful" });

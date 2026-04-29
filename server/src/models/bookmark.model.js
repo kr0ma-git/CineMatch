@@ -16,6 +16,7 @@ const bookmarkSchema = new Schema(
         imdbMovieTitle: {
             type: String,
             required: false,
+            default: "",
         },
         type: {
             type: String,
