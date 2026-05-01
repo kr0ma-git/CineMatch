@@ -2,7 +2,7 @@ import mongoose, { Schema } from "mongoose"
 
 const reviewSchema = new Schema(
     {
-        userId: {
+        user: {
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
@@ -16,6 +16,7 @@ const reviewSchema = new Schema(
         imdbMovieTitle: {
             type: String,
             required: false,
+            default: "",
         },
         movieReviewString: {
             type: String,
