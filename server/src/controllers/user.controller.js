@@ -83,8 +83,28 @@ const logoutUser = async (req, res) => {
     }
 }
 
+const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.status(200).json({
+            id: user._id,
+            username: user.username,
+            email: user.email
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Internal Server Error", error: error.message });
+    }
+}
+
 export {
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    getUserById
 }
