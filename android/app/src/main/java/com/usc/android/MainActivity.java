@@ -1,8 +1,6 @@
 package com.usc.android;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Patterns;
@@ -96,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
                     
                     RegisterResponse.UserData user = response.body().getUser();
                     if (user != null) {
-                        saveUserId(user.getId());
+                        UserSession.getInstance().setUserId(user.getId());
                     }
 
                     Intent intent = new Intent(MainActivity.this, LandingActivity.class);
@@ -125,12 +123,5 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Network Error. Is server running?", Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void saveUserId(String userId) {
-        SharedPreferences sharedPref = getSharedPreferences("CineMatchPrefs", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString("userId", userId);
-        editor.apply();
     }
 }

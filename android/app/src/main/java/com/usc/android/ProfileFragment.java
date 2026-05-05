@@ -1,7 +1,5 @@
 package com.usc.android;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -53,8 +51,7 @@ public class ProfileFragment extends Fragment {
     }
 
     private void fetchUserProfile() {
-        SharedPreferences sharedPref = requireActivity().getSharedPreferences("CineMatchPrefs", Context.MODE_PRIVATE);
-        String userId = sharedPref.getString("userId", null);
+        String userId = UserSession.getInstance().getUserId();
 
         if (userId == null) {
             Toast.makeText(getContext(), "User not logged in", Toast.LENGTH_SHORT).show();
