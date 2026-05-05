@@ -1,0 +1,34 @@
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Build folders
+build/
+bin/
+gen/
+out/
+
+# Android specific
+android/.gradle/
+android/local.properties
+android/app/build/
+android/.cxx/
+android/.externalNativeBuild/
+*.apk
+*.aar
+*.bundle
+
+# Node/Server specific
+server/node_modules/
+server/.env
+server/logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
