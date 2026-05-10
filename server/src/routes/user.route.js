@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { 
+import {
     logoutUser,
     loginUser,
     registerUser,
@@ -14,9 +14,11 @@ const router = Router();
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
 router.route("/logout").post(logoutUser);
+
 // GET
 router.route("/id/:userId").get(getUserById);
 router.route("/email/:email").get(getUserByEmail);
 router.route("/").get(getAllUsers);
+router.route("/:id").get(getUserById);
 
 export default router;

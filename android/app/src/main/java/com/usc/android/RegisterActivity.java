@@ -2,9 +2,11 @@ package com.usc.android;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,6 +26,7 @@ public class RegisterActivity extends AppCompatActivity {
     private static final String TAG = "RegisterActivity";
     private TextInputEditText etUsername, etEmail, etPassword;
     private Button btnRegister;
+    private TextView tvLoginLink;
     private ProgressBar progressBar;
     private ApiService apiService;
 
@@ -36,6 +39,11 @@ public class RegisterActivity extends AppCompatActivity {
         setupRetrofit();
 
         btnRegister.setOnClickListener(v -> handleRegistration());
+
+        tvLoginLink.setOnClickListener(v -> {
+            // Navigate back to Login (MainActivity)
+            finish();
+        });
     }
 
     private void initViews() {
@@ -43,6 +51,7 @@ public class RegisterActivity extends AppCompatActivity {
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         btnRegister = findViewById(R.id.btnRegister);
+        tvLoginLink = findViewById(R.id.tvLoginLink);
         progressBar = findViewById(R.id.progressBar);
     }
 
@@ -66,7 +75,13 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // 2. Username checks
+        // 2. Email validation
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            etEmail.setError("Please enter a valid email address");
+            return;
+        }
+
+        // 3. Username checks
         if (!username.matches("^[a-zA-Z0-9]*$")) {
             etUsername.setError("Username must be alphanumeric (letters/numbers only)");
             return;
@@ -76,7 +91,7 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // 3. Password length check (min 6 characters)
+        // 4. Password length check (min 6 characters)
         if (password.length() < 6) {
             etPassword.setError("Password must be at least 6 characters");
             return;
