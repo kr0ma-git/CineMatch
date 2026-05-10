@@ -30,7 +30,7 @@ const createBookmark = async (req, res) => {
         }
 
         const bookmark = await Bookmark.create({
-            userId,
+            user: userId,
             imdbMovieId: movieId,
             imdbMovieTitle: movieTitle,
             type,
@@ -38,7 +38,10 @@ const createBookmark = async (req, res) => {
 
         return res.status(201).json({
             message: "Bookmark successful",
-            bookmark,
+            bookmark: {
+                userId,
+                movieId,
+            }
         })
     } catch (error) {
         return res.status(500).json({ message: "Internal server error", error: error.message });
@@ -65,14 +68,8 @@ const getAllBookmarks = async (req, res) => {
 const getAllBookmarksByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
-        const existingUser = await User.findById(userId);
-
-        if (!existingUser) {
-            return res.status(404).json({ message: "User does not exist" });
-        }
-
         const bookmarks = await Bookmark.find({
-            user: userId
+            user: userId,
         });
 
 

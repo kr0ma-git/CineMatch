@@ -14,6 +14,6 @@ router.route("/create").post(createBookmark);
 router.route("/").get(getAllBookmarks);
 router.route("/:userId").get(getAllBookmarksByUserId);
 // DELETE
-router.route("/:userId/:movieId").delete(deleteMovieBookmarkByUserId);
+router.route("/delete/:userId/:movieId").delete(deleteBookmarkForUser);
 
 export default router;

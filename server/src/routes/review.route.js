@@ -1,12 +1,11 @@
 import { Router } from "express";
 import {
     createReview,
-    getAllReviewsByMovie,
-    getAllMovieReviewsByUserId,
-    getAllReviewsByUserId,
     getAllReviews,
-    // editMovieReviewByUserId,
-    deleteMovieReviewByUserId,
+    getAllReviewsByMovieId,
+    getAllReviewsByUserId,
+    deleteReviewForUser,
+    getSpecificReviewForUser,
 } from "../controllers/review.controller.js";
 
 const router = Router();
@@ -14,13 +13,11 @@ const router = Router();
 // POST
 router.route("/create").post(createReview);
 // GET
-router.route("/:movieId").get(getAllReviewsByMovie);
-router.route("/:userId/:movieId").get(getAllMovieReviewsByUserId);
-router.route("/:userId").get(getAllReviewsByUserId);
 router.route("/").get(getAllReviews);
-// PATCH
-// router.route("/:userId/:movieId").patch(editMovieReviewByUser);
+router.route("/movie/:movieId").get(getAllReviewsByMovieId);
+router.route("/user/:userId").get(getAllReviewsByUserId);
+router.route("/specific/:userId/:movieId").get(getSpecificReviewForUser);
 // DELETE
-router.route(":/userId/:movieId").delete(deleteMovieReviewByUserId);
+router.route("/delete/:reviewId").delete(deleteReviewForUser);
 
 export default router;
