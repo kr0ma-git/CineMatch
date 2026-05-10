@@ -18,5 +18,6 @@ router.route("/logout").post(logoutUser);
 router.route("/id/:userId").get(getUserById);
 router.route("/email/:email").get(getUserByEmail);
 router.route("/").get(getAllUsers);
+router.route("/:id").get(getUserById);
 
 export default router;
