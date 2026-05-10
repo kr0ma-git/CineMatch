@@ -14,7 +14,7 @@ const createBookmark = async (req, res) => {
         }
 
         const existingBookmark = await Bookmark.findOne({
-            userId,
+            user: userId,
             imdbMovieId: movieId,
         });
 
@@ -23,7 +23,7 @@ const createBookmark = async (req, res) => {
         }
 
         const bookmark = await Bookmark.create({
-            userId,
+            user: userId,
             imdbMovieId: movieId,
             imdbMovieTitle: movieTitle,
             type,
@@ -33,7 +33,7 @@ const createBookmark = async (req, res) => {
             message: "Bookmark successful",
             bookmark: {
                 userId,
-                imdbMovieId,
+                movieId,
             }
         })
     } catch (error) {
@@ -61,8 +61,8 @@ const getAllBookmarks = async (req, res) => {
 const getBookmarksByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
-        const bookmarks = await Bookmarks.find({
-            userId
+        const bookmarks = await Bookmark.find({
+            user: userId,
         });
 
         if (bookmarks.length === 0) {
@@ -83,7 +83,7 @@ const deleteBookmarkForUser = async (req, res) => {
         const { userId, movieId } = req.params;
 
         const deletedBookmark = await Bookmark.deleteOne({
-            userId,
+            user: userId,
             imdbMovieId: movieId,
         });
 
@@ -95,7 +95,7 @@ const deleteBookmarkForUser = async (req, res) => {
             message: "Bookmark deleted",
             movieDeletedInfo: {
                 userId,
-                imdbMovieId,
+                movieId,
             }
         });
     } catch (error) {

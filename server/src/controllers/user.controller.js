@@ -93,7 +93,11 @@ const getUserById = async (req, res) => {
 
         return res.status(200).json({
             message: "User found",
-            user,
+            user: {
+                id: user._id,
+                email: user.email,
+                username: user.username,
+            }
         });
     } catch(error) {
         return res.status(500).json({ message: "Internal server error", error: error.message });
