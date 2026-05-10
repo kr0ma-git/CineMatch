@@ -1,4 +1,5 @@
 import { Bookmark } from "../models/bookmark.model.js";
+import { User } from "../models/user.model.js";
 
 const createBookmark = async (req, res) => {
     try {
@@ -11,6 +12,12 @@ const createBookmark = async (req, res) => {
         const allowedTypes = ["movie", "series"];
         if (!allowedTypes.includes(type)) {
             return res.status(400).json({ message: "Movie Type can only be 'movie' or 'series'" });
+        }
+
+        const existingUser = await User.findById(userId);
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User does not exist" });
         }
 
         const existingBookmark = await Bookmark.findOne({
@@ -58,15 +65,16 @@ const getAllBookmarks = async (req, res) => {
     }
 }
 
-const getBookmarksByUserId = async (req, res) => {
+const getAllBookmarksByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
         const bookmarks = await Bookmark.find({
             user: userId,
         });
 
+
         if (bookmarks.length === 0) {
-            return res.status(404).json({ message: "User has no bookmarks" });
+            return res.status(404).json({ message: "User has no bookmarks or User does not exist" });
         }
 
         return res.status(200).json({
@@ -78,9 +86,14 @@ const getBookmarksByUserId = async (req, res) => {
     }
 }
 
-const deleteBookmarkForUser = async (req, res) => {
+const deleteMovieBookmarkByUserId = async (req, res) => {
     try {
         const { userId, movieId } = req.params;
+        const existingUser = await User.findById(userId);
+
+        if (!existingUser) {
+            return res.statsu(404).json({ message: "User does not exist" });
+        }
 
         const deletedBookmark = await Bookmark.deleteOne({
             user: userId,
@@ -88,7 +101,7 @@ const deleteBookmarkForUser = async (req, res) => {
         });
 
         if (deletedBookmark.deletedCount === 0) {
-            return res.status(400).json({ message: "Bookmark could not be found for user, therefore no bookmark was deleted" });
+            return res.status(400).json({ message: "Bookmark does not exit" });
         }
 
         return res.status(200).json({
@@ -108,7 +121,7 @@ export {
     createBookmark,
     // GET
     getAllBookmarks,
-    getBookmarksByUserId,
+    getAllBookmarksByUserId,
     // DELETE
-    deleteBookmarkForUser,
+    deleteMovieBookmarkByUserId,
 }

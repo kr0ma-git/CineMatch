@@ -4,7 +4,7 @@
 
 Optionals/TBI
 
-- User session with expo-session and connect-mongo
+- User session with expo-session and connect-mongo (will have to update controllers)
 
 Initial Commit:
 

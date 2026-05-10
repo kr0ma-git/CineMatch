@@ -16,6 +16,7 @@ const reviewSchema = new Schema(
         imdbMovieTitle: {
             type: String,
             required: false,
+            default: "",
         },
         movieReviewString: {
             type: String,
