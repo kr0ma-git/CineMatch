@@ -3,7 +3,7 @@ import {
     createBookmark,
     getAllBookmarks,
     getAllBookmarksByUserId,
-    deleteMovieBookmarkByUserId,
+    deleteMovieBookmarkForUser,
 } from "../controllers/bookmark.controller.js";
 
 const router = Router();
@@ -14,6 +14,6 @@ router.route("/create").post(createBookmark);
 router.route("/").get(getAllBookmarks);
 router.route("/:userId").get(getAllBookmarksByUserId);
 // DELETE
-router.route("/delete/:userId/:movieId").delete(deleteBookmarkForUser);
+router.route("/delete/:userId/:movieId").delete(deleteMovieBookmarkForUser);
 
 export default router;

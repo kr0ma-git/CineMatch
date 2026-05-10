@@ -86,7 +86,7 @@ const getAllBookmarksByUserId = async (req, res) => {
     }
 }
 
-const deleteMovieBookmarkByUserId = async (req, res) => {
+const deleteMovieBookmarkForUser = async (req, res) => {
     try {
         const { userId, movieId } = req.params;
         const existingUser = await User.findById(userId);
@@ -123,5 +123,5 @@ export {
     getAllBookmarks,
     getAllBookmarksByUserId,
     // DELETE
-    deleteMovieBookmarkByUserId,
+    deleteMovieBookmarkForUser,
 }
