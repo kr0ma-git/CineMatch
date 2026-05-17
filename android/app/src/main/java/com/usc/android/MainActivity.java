@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
             etEmail.setError("Please enter a valid email address");
             return;
         }
-// A Change to Push to Main
+// A Change to Push to Main // A Small Change
         progressBar.setVisibility(View.VISIBLE);
         btnLogin.setEnabled(false);
 
