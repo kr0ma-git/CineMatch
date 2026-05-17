@@ -36,11 +36,16 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    implementation(libs.swiperefreshlayout)
     
     // Networking
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation(libs.converter.scalars)
     implementation(libs.gson)
+    
+    // HTML Parsing
+    implementation(libs.jsoup)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
