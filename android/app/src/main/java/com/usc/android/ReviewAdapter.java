@@ -15,9 +15,14 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
 
     private List<Review> reviewList;
     private OnItemLongClickListener longClickListener;
+    private OnItemClickListener clickListener;
 
     public interface OnItemLongClickListener {
         void onItemLongClick(Review review);
+    }
+
+    public interface OnItemClickListener {
+        void onItemClick(Review review);
     }
 
     public ReviewAdapter(List<Review> reviewList) {
@@ -26,6 +31,12 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
 
     public ReviewAdapter(List<Review> reviewList, OnItemLongClickListener longClickListener) {
         this.reviewList = reviewList;
+        this.longClickListener = longClickListener;
+    }
+
+    public ReviewAdapter(List<Review> reviewList, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
+        this.reviewList = reviewList;
+        this.clickListener = clickListener;
         this.longClickListener = longClickListener;
     }
 
@@ -43,13 +54,18 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
         holder.ratingBar.setRating(review.getMovieRatingStars());
         holder.tvReviewText.setText(review.getMovieReviewString());
         
-        // Setting author name - assuming review.getUser() returns the display name or ID
         if (review.getUser() != null) {
             holder.tvAuthorName.setText("— " + review.getUser());
             holder.tvAuthorName.setVisibility(View.VISIBLE);
         } else {
             holder.tvAuthorName.setVisibility(View.GONE);
         }
+
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onItemClick(review);
+            }
+        });
 
         if (longClickListener != null) {
             holder.itemView.setOnLongClickListener(v -> {

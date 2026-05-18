@@ -33,7 +33,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class SearchFragment extends Fragment {
 
     private static final String TAG = "SearchFragment";
-    private static final String OMDB_API_KEY = "API_KEY"; //check your gmail brother
+    private static final String OMDB_API_KEY = "API_KEY";
 
     private SearchView searchView;
     private RecyclerView rvSearchResults;
@@ -62,6 +62,7 @@ public class SearchFragment extends Fragment {
         rvSearchResults.setAdapter(adapter);
 
         setupRetrofit();
+        fetchUserBookmarks(); // Get initial bookmarks to show "Bookmarked" status
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
@@ -84,140 +85,117 @@ public class SearchFragment extends Fragment {
         });
     }
 
-    private String getSelectedType() {
-        int checkedId = chipGroupType.getCheckedChipId();
-        if (checkedId == R.id.chipMovies) {
-            return "movie";
-        } else if (checkedId == R.id.chipSeries) {
-            return "series";
-        }
-        return null; // "All"
-    }
-
     private void setupRetrofit() {
         Gson gson = new GsonBuilder().setLenient().create();
-
-        Retrofit omdbRetrofit = new Retrofit.Builder()
+        omdbApiService = new Retrofit.Builder()
                 .baseUrl("https://www.omdbapi.com/")
                 .addConverterFactory(GsonConverterFactory.create(gson))
-                .build();
-        omdbApiService = omdbRetrofit.create(ImdbApiService.class);
+                .build().create(ImdbApiService.class);
 
-        Retrofit cineMatchRetrofit = new Retrofit.Builder()
+        cineMatchApiService = new Retrofit.Builder()
                 .baseUrl("http://10.0.2.2:4000/")
                 .addConverterFactory(GsonConverterFactory.create(gson))
-                .build();
-        cineMatchApiService = cineMatchRetrofit.create(ApiService.class);
+                .build().create(ApiService.class);
+    }
+
+    private void fetchUserBookmarks() {
+        String userId = UserSession.getInstance().getUserId();
+        if (userId == null) return;
+
+        cineMatchApiService.getUserBookmarks(userId).enqueue(new Callback<BookmarksResponse>() {
+            @Override
+            public void onResponse(Call<BookmarksResponse> call, Response<BookmarksResponse> response) {
+                if (isAdded() && response.isSuccessful() && response.body() != null) {
+                    List<String> bookmarkedIds = new ArrayList<>();
+                    for (Bookmark b : response.body().getBookmarks()) {
+                        bookmarkedIds.add(b.getImdbMovieId());
+                    }
+                    adapter.setBookmarkedIds(bookmarkedIds);
+                }
+            }
+            @Override
+            public void onFailure(Call<BookmarksResponse> call, Throwable t) {}
+        });
+    }
+
+    private String getSelectedType() {
+        int checkedId = chipGroupType.getCheckedChipId();
+        if (checkedId == R.id.chipMovies) return "movie";
+        if (checkedId == R.id.chipSeries) return "series";
+        return null;
     }
 
     private void performSearch(String query, String type) {
         omdbApiService.searchMovies(OMDB_API_KEY, query, type).enqueue(new Callback<ImdbSearchResponse>() {
             @Override
             public void onResponse(Call<ImdbSearchResponse> call, Response<ImdbSearchResponse> response) {
-                if (isAdded()) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        ImdbSearchResponse data = response.body();
-                        if ("True".equalsIgnoreCase(data.getResponse())) {
-                            searchResults.clear();
-                            if (data.getSearch() != null) {
-                                searchResults.addAll(data.getSearch());
-                            }
-                            adapter.notifyDataSetChanged();
-                        } else {
-                            searchResults.clear();
-                            adapter.notifyDataSetChanged();
-                            Toast.makeText(getContext(), "No results found", Toast.LENGTH_SHORT).show();
-                        }
+                if (isAdded() && response.isSuccessful() && response.body() != null) {
+                    ImdbSearchResponse data = response.body();
+                    if ("True".equalsIgnoreCase(data.getResponse())) {
+                        searchResults.clear();
+                        searchResults.addAll(data.getSearch());
+                        adapter.notifyDataSetChanged();
+                    } else {
+                        searchResults.clear();
+                        adapter.notifyDataSetChanged();
+                        Toast.makeText(getContext(), "No results found", Toast.LENGTH_SHORT).show();
                     }
                 }
             }
-
             @Override
             public void onFailure(Call<ImdbSearchResponse> call, Throwable t) {
-                if (isAdded()) {
-                    Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
-                }
+                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void onMovieSelected(ImdbSearchResponse.SearchResult movie) {
         String userId = UserSession.getInstance().getUserId();
-        if (userId == null) {
-            Toast.makeText(getContext(), "Log in to interact", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (userId == null) return;
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle(movie.getTitle());
-        String[] options = {"Add to Bookmarks", "Write a Review"};
-        builder.setItems(options, (dialog, which) -> {
-            if (which == 0) {
-                handleBookmark(userId, movie);
-            } else {
-                showReviewDialog(userId, movie);
-            }
-        });
-        builder.show();
+        new AlertDialog.Builder(getContext())
+                .setTitle(movie.getTitle())
+                .setItems(new String[]{"Add to Bookmarks", "Write a Review"}, (dialog, which) -> {
+                    if (which == 0) handleBookmark(userId, movie);
+                    else showReviewDialog(userId, movie);
+                }).show();
     }
 
     private void handleBookmark(String userId, ImdbSearchResponse.SearchResult movie) {
-        String type = getSelectedType();
-        if (type == null) type = "movie";
-
-        BookmarkRequest request = new BookmarkRequest(userId, movie.getId(), movie.getTitle(), type);
-        cineMatchApiService.createBookmark(request).enqueue(new Callback<BookmarksResponse>() {
+        String type = getSelectedType() == null ? "movie" : getSelectedType();
+        cineMatchApiService.createBookmark(new BookmarkRequest(userId, movie.getId(), movie.getTitle(), type))
+                .enqueue(new Callback<BookmarksResponse>() {
             @Override
             public void onResponse(Call<BookmarksResponse> call, Response<BookmarksResponse> response) {
-                if (isAdded()) {
-                    if (response.isSuccessful()) {
-                        Toast.makeText(getContext(), "Bookmarked!", Toast.LENGTH_SHORT).show();
-                    } else if (response.code() == 409) {
-                        Toast.makeText(getContext(), "Already bookmarked", Toast.LENGTH_SHORT).show();
-                    }
+                if (isAdded() && response.isSuccessful()) {
+                    Toast.makeText(getContext(), "Bookmarked!", Toast.LENGTH_SHORT).show();
+                    fetchUserBookmarks(); // Update "Bookmarked" indicators
                 }
             }
-
             @Override
-            public void onFailure(Call<BookmarksResponse> call, Throwable t) {
-                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(Call<BookmarksResponse> call, Throwable t) {}
         });
     }
 
     private void showReviewDialog(String userId, ImdbSearchResponse.SearchResult movie) {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
-        EditText etReview = dialogView.findViewById(R.id.etReview);
-        RatingBar ratingBar = dialogView.findViewById(R.id.ratingBar);
+        View v = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
+        EditText et = v.findViewById(R.id.etReview);
+        RatingBar rb = v.findViewById(R.id.ratingBar);
 
-        new AlertDialog.Builder(getContext())
-                .setTitle("Review " + movie.getTitle())
-                .setView(dialogView)
-                .setPositiveButton("Post", (dialog, which) -> {
-                    String reviewText = etReview.getText().toString().trim();
-                    int rating = (int) ratingBar.getRating();
-                    if (!reviewText.isEmpty()) {
-                        postReview(userId, movie, reviewText, rating);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        new AlertDialog.Builder(getContext()).setTitle("Review " + movie.getTitle()).setView(v)
+                .setPositiveButton("Post", (d, w) -> postReview(userId, movie, et.getText().toString(), (int) rb.getRating()))
+                .setNegativeButton("Cancel", null).show();
     }
 
     private void postReview(String userId, ImdbSearchResponse.SearchResult movie, String text, int rating) {
-        ReviewRequest request = new ReviewRequest(userId, movie.getId(), movie.getTitle(), text, rating);
-        cineMatchApiService.createReview(request).enqueue(new Callback<Void>() {
+        cineMatchApiService.createReview(new ReviewRequest(userId, movie.getId(), movie.getTitle(), text, rating))
+                .enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
-                if (isAdded() && response.isSuccessful()) {
-                    Toast.makeText(getContext(), "Review posted!", Toast.LENGTH_SHORT).show();
-                }
+                if (isAdded() && response.isSuccessful()) Toast.makeText(getContext(), "Review posted!", Toast.LENGTH_SHORT).show();
             }
-
             @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(Call<Void> call, Throwable t) {}
         });
     }
 }

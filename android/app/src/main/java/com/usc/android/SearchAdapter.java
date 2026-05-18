@@ -9,11 +9,14 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SearchAdapter extends RecyclerView.Adapter<SearchAdapter.SearchViewHolder> {
 
     private List<ImdbSearchResponse.SearchResult> results;
+    private Set<String> bookmarkedIds = new HashSet<>();
     private OnMovieClickListener listener;
 
     public interface OnMovieClickListener {
@@ -23,6 +26,14 @@ public class SearchAdapter extends RecyclerView.Adapter<SearchAdapter.SearchView
     public SearchAdapter(List<ImdbSearchResponse.SearchResult> results, OnMovieClickListener listener) {
         this.results = results;
         this.listener = listener;
+    }
+
+    public void setBookmarkedIds(List<String> ids) {
+        this.bookmarkedIds.clear();
+        if (ids != null) {
+            this.bookmarkedIds.addAll(ids);
+        }
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -37,6 +48,16 @@ public class SearchAdapter extends RecyclerView.Adapter<SearchAdapter.SearchView
         ImdbSearchResponse.SearchResult movie = results.get(position);
         holder.tvTitle.setText(movie.getTitle());
         holder.tvDescription.setText(movie.getDescription());
+        
+        if (bookmarkedIds.contains(movie.getId())) {
+            holder.btnAction.setText("Bookmarked");
+            holder.btnAction.setEnabled(true); // Allow review even if bookmarked
+            holder.btnAction.setAlpha(0.6f);
+        } else {
+            holder.btnAction.setText("Interact");
+            holder.btnAction.setEnabled(true);
+            holder.btnAction.setAlpha(1.0f);
+        }
         
         holder.btnAction.setOnClickListener(v -> listener.onMovieClick(movie));
     }
