@@ -14,9 +14,14 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
 
     private List<Bookmark> movieList;
     private OnItemLongClickListener longClickListener;
+    private OnItemClickListener clickListener;
 
     public interface OnItemLongClickListener {
         void onItemLongClick(Bookmark bookmark);
+    }
+
+    public interface OnItemClickListener {
+        void onItemClick(Bookmark bookmark);
     }
 
     public MovieAdapter(List<Bookmark> movieList) {
@@ -25,6 +30,12 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
 
     public MovieAdapter(List<Bookmark> movieList, OnItemLongClickListener longClickListener) {
         this.movieList = movieList;
+        this.longClickListener = longClickListener;
+    }
+
+    public MovieAdapter(List<Bookmark> movieList, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
+        this.movieList = movieList;
+        this.clickListener = clickListener;
         this.longClickListener = longClickListener;
     }
 
@@ -39,6 +50,12 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
         Bookmark movie = movieList.get(position);
         holder.tvMovieTitle.setText(movie.getImdbMovieTitle());
+
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onItemClick(movie);
+            }
+        });
 
         if (longClickListener != null) {
             holder.itemView.setOnLongClickListener(v -> {
