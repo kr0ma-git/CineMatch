@@ -6,6 +6,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -51,10 +53,10 @@ public class ProfileFragment extends Fragment {
         tvEmail = view.findViewById(R.id.tvEmail);
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
 
-        // Initialize Bookmarks with Long Click to Delete
+        // Initialize Bookmarks with Click to Review and Long Click to Delete
         rvMyBookmarks = view.findViewById(R.id.rvMyBookmarks);
         rvMyBookmarks.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
-        bookmarkAdapter = new MovieAdapter(bookmarkList, this::showDeleteBookmarkDialog);
+        bookmarkAdapter = new MovieAdapter(bookmarkList, this::onBookmarkClicked, this::showDeleteBookmarkDialog);
         rvMyBookmarks.setAdapter(bookmarkAdapter);
 
         // Initialize Reviews with Long Click to Delete
@@ -154,6 +156,46 @@ public class ProfileFragment extends Fragment {
             @Override
             public void onFailure(Call<ReviewsResponse> call, Throwable t) {
                 if (isAdded()) checkRefreshStatus();
+            }
+        });
+    }
+
+    private void onBookmarkClicked(Bookmark bookmark) {
+        String userId = UserSession.getInstance().getUserId();
+        if (userId == null) return;
+
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
+        EditText etReview = dialogView.findViewById(R.id.etReview);
+        RatingBar ratingBar = dialogView.findViewById(R.id.ratingBar);
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("Review " + bookmark.getImdbMovieTitle())
+                .setView(dialogView)
+                .setPositiveButton("Post", (dialog, which) -> {
+                    String reviewText = etReview.getText().toString().trim();
+                    int rating = (int) ratingBar.getRating();
+                    if (!reviewText.isEmpty()) {
+                        postReview(userId, bookmark, reviewText, rating);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void postReview(String userId, Bookmark bookmark, String text, int rating) {
+        ReviewRequest request = new ReviewRequest(userId, bookmark.getImdbMovieId(), bookmark.getImdbMovieTitle(), text, rating);
+        apiService.createReview(request).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (isAdded() && response.isSuccessful()) {
+                    Toast.makeText(getContext(), "Review posted!", Toast.LENGTH_SHORT).show();
+                    fetchUserReviews(); // Refresh reviews list
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
             }
         });
     }
