@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,7 +22,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -32,15 +35,36 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class ProfileFragment extends Fragment {
 
     private static final String TAG = "ProfileFragment";
-    private TextView tvUsername, tvEmail;
+    private static final String ARG_USER_ID = "user_id";
+
+    private TextView tvUsername, tvEmail, tvProfileTitle, tvEmailLabel;
     private Button btnLogout;
+    private ImageButton btnBack;
     private SwipeRefreshLayout swipeRefresh;
     private RecyclerView rvMyBookmarks, rvMyReviews;
     private MovieAdapter bookmarkAdapter;
     private ReviewAdapter reviewAdapter;
     private List<Bookmark> bookmarkList = new ArrayList<>();
     private List<Review> reviewList = new ArrayList<>();
+    private Map<String, String> userMap = new HashMap<>();
     private ApiService apiService;
+    private String targetUserId;
+
+    public static ProfileFragment newInstance(String userId) {
+        ProfileFragment fragment = new ProfileFragment();
+        Bundle args = new Bundle();
+        args.putString(ARG_USER_ID, userId);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            targetUserId = getArguments().getString(ARG_USER_ID);
+        }
+    }
 
     @Nullable
     @Override
@@ -52,29 +76,51 @@ public class ProfileFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        tvProfileTitle = view.findViewById(R.id.tvProfileTitle);
         tvUsername = view.findViewById(R.id.tvUsername);
         tvEmail = view.findViewById(R.id.tvEmail);
+        tvEmailLabel = view.findViewById(R.id.tvEmailLabel);
         btnLogout = view.findViewById(R.id.btnLogout);
+        btnBack = view.findViewById(R.id.btnBack);
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
 
-        // Initialize Bookmarks: Click to Review, Long Click to Delete
+        String sessionUserId = UserSession.getInstance().getUserId();
+        if (targetUserId == null) {
+            targetUserId = sessionUserId;
+        }
+
+        boolean isOwnProfile = targetUserId != null && targetUserId.equals(sessionUserId);
+
+        if (!isOwnProfile) {
+            tvProfileTitle.setText("User Profile");
+            btnLogout.setVisibility(View.GONE);
+            btnBack.setVisibility(View.VISIBLE);
+            tvEmail.setVisibility(View.GONE); // Hide email for other users
+            tvEmailLabel.setVisibility(View.GONE);
+        }
+
+        btnBack.setOnClickListener(v -> getParentFragmentManager().popBackStack());
+
+        // Initialize Bookmarks: Click to Review (only if own), Long Click to Delete (only if own)
         rvMyBookmarks = view.findViewById(R.id.rvMyBookmarks);
         rvMyBookmarks.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
-        bookmarkAdapter = new MovieAdapter(bookmarkList, this::onBookmarkClicked, this::showDeleteBookmarkDialog);
+        bookmarkAdapter = new MovieAdapter(bookmarkList, 
+                isOwnProfile ? this::onBookmarkClicked : null, 
+                isOwnProfile ? this::showDeleteBookmarkDialog : null);
         rvMyBookmarks.setAdapter(bookmarkAdapter);
 
-        // Initialize Reviews: Click to Edit, Long Click to Delete
+        // Initialize Reviews: Click to Edit (only if own), Long Click to Delete (only if own)
         rvMyReviews = view.findViewById(R.id.rvMyReviews);
         rvMyReviews.setLayoutManager(new LinearLayoutManager(getContext()));
-        reviewAdapter = new ReviewAdapter(reviewList, this::onReviewClicked, this::showDeleteReviewDialog);
+        reviewAdapter = new ReviewAdapter(reviewList, 
+                isOwnProfile ? this::onReviewClicked : null, 
+                isOwnProfile ? this::showDeleteReviewDialog : null);
         rvMyReviews.setAdapter(reviewAdapter);
 
         btnLogout.setOnClickListener(v -> handleLogout());
 
         setupRetrofit();
-
         swipeRefresh.setOnRefreshListener(this::refreshData);
-
         refreshData();
     }
 
@@ -102,16 +148,35 @@ public class ProfileFragment extends Fragment {
 
     private void refreshData() {
         swipeRefresh.setRefreshing(true);
+        fetchUsers();
         fetchUserProfile();
         fetchUserBookmarks();
         fetchUserReviews();
     }
 
-    private void fetchUserProfile() {
-        String userId = UserSession.getInstance().getUserId();
-        if (userId == null) return;
+    private void fetchUsers() {
+        apiService.getAllUsers().enqueue(new Callback<UsersResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<UsersResponse> call, @NonNull Response<UsersResponse> response) {
+                if (isAdded() && response.isSuccessful() && response.body() != null) {
+                    userMap.clear();
+                    if (response.body().getUserData() != null) {
+                        for (RegisterResponse.UserData user : response.body().getUserData()) {
+                            userMap.put(user.getId(), user.getUsername());
+                        }
+                    }
+                    reviewAdapter.setUserMap(userMap);
+                }
+            }
+            @Override
+            public void onFailure(@NonNull Call<UsersResponse> call, @NonNull Throwable t) {}
+        });
+    }
 
-        apiService.getUserProfile(userId).enqueue(new Callback<RegisterResponse>() {
+    private void fetchUserProfile() {
+        if (targetUserId == null) return;
+
+        apiService.getUserProfile(targetUserId).enqueue(new Callback<RegisterResponse>() {
             @Override
             public void onResponse(Call<RegisterResponse> call, Response<RegisterResponse> response) {
                 if (isAdded() && response.isSuccessful() && response.body() != null) {
@@ -132,10 +197,9 @@ public class ProfileFragment extends Fragment {
     }
 
     private void fetchUserBookmarks() {
-        String userId = UserSession.getInstance().getUserId();
-        if (userId == null) return;
+        if (targetUserId == null) return;
 
-        apiService.getUserBookmarks(userId).enqueue(new Callback<BookmarksResponse>() {
+        apiService.getUserBookmarks(targetUserId).enqueue(new Callback<BookmarksResponse>() {
             @Override
             public void onResponse(Call<BookmarksResponse> call, Response<BookmarksResponse> response) {
                 if (isAdded()) {
@@ -156,10 +220,9 @@ public class ProfileFragment extends Fragment {
     }
 
     private void fetchUserReviews() {
-        String userId = UserSession.getInstance().getUserId();
-        if (userId == null) return;
+        if (targetUserId == null) return;
 
-        apiService.getUserReviews(userId).enqueue(new Callback<ReviewsResponse>() {
+        apiService.getUserReviews(targetUserId).enqueue(new Callback<ReviewsResponse>() {
             @Override
             public void onResponse(Call<ReviewsResponse> call, Response<ReviewsResponse> response) {
                 if (isAdded()) {
@@ -180,8 +243,8 @@ public class ProfileFragment extends Fragment {
     }
 
     private void onBookmarkClicked(Bookmark bookmark) {
-        String userId = UserSession.getInstance().getUserId();
-        if (userId == null) return;
+        String sessionUserId = UserSession.getInstance().getUserId();
+        if (sessionUserId == null) return;
 
         View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
         EditText etReview = dialogView.findViewById(R.id.etReview);
@@ -194,7 +257,7 @@ public class ProfileFragment extends Fragment {
                     String reviewText = etReview.getText().toString().trim();
                     int rating = (int) ratingBar.getRating();
                     if (!reviewText.isEmpty()) {
-                        postReview(userId, bookmark.getImdbMovieId(), bookmark.getImdbMovieTitle(), reviewText, rating);
+                        postReview(sessionUserId, bookmark.getImdbMovieId(), bookmark.getImdbMovieTitle(), reviewText, rating);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -202,14 +265,13 @@ public class ProfileFragment extends Fragment {
     }
 
     private void onReviewClicked(Review review) {
-        String userId = UserSession.getInstance().getUserId();
-        if (userId == null) return;
+        String sessionUserId = UserSession.getInstance().getUserId();
+        if (sessionUserId == null) return;
 
         View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
         EditText etReview = dialogView.findViewById(R.id.etReview);
         RatingBar ratingBar = dialogView.findViewById(R.id.ratingBar);
 
-        // Pre-fill with current review data
         etReview.setText(review.getMovieReviewString());
         ratingBar.setRating(review.getMovieRatingStars());
 
@@ -220,7 +282,7 @@ public class ProfileFragment extends Fragment {
                     String newText = etReview.getText().toString().trim();
                     int newRating = (int) ratingBar.getRating();
                     if (!newText.isEmpty()) {
-                        handleReviewUpdate(review.getId(), userId, review.getImdbMovieId(), review.getImdbMovieTitle(), newText, newRating);
+                        handleReviewUpdate(review.getId(), sessionUserId, review.getImdbMovieId(), review.getImdbMovieTitle(), newText, newRating);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -228,12 +290,10 @@ public class ProfileFragment extends Fragment {
     }
 
     private void handleReviewUpdate(String oldReviewId, String userId, String movieId, String title, String text, int rating) {
-        // Step 1: Delete old review
         apiService.deleteReview(oldReviewId).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (isAdded() && response.isSuccessful()) {
-                    // Step 2: Create new review
                     postReview(userId, movieId, title, text, rating);
                 } else {
                     Toast.makeText(getContext(), "Update failed at deletion step", Toast.LENGTH_SHORT).show();
@@ -254,7 +314,7 @@ public class ProfileFragment extends Fragment {
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (isAdded() && response.isSuccessful()) {
                     Toast.makeText(getContext(), "Review updated!", Toast.LENGTH_SHORT).show();
-                    fetchUserReviews(); // Refresh list
+                    fetchUserReviews(); 
                 }
             }
 
@@ -275,8 +335,8 @@ public class ProfileFragment extends Fragment {
     }
 
     private void deleteBookmark(Bookmark bookmark) {
-        String userId = UserSession.getInstance().getUserId();
-        apiService.deleteBookmark(userId, bookmark.getImdbMovieId()).enqueue(new Callback<Void>() {
+        String sessionUserId = UserSession.getInstance().getUserId();
+        apiService.deleteBookmark(sessionUserId, bookmark.getImdbMovieId()).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (isAdded() && response.isSuccessful()) {
