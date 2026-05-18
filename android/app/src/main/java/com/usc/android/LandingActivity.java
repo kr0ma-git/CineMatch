@@ -21,6 +21,8 @@ public class LandingActivity extends AppCompatActivity {
                 selectedFragment = new HomeFragment();
             } else if (itemId == R.id.nav_search) {
                 selectedFragment = new SearchFragment();
+            } else if (itemId == R.id.nav_random) {
+                selectedFragment = new RandomMovieFragment();
             } else if (itemId == R.id.nav_profile) {
                 selectedFragment = new ProfileFragment();
             }

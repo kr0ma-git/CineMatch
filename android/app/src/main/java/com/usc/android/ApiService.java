@@ -40,4 +40,7 @@ public interface ApiService {
 
     @GET("api/v1/reviews/user/{userId}")
     Call<ReviewsResponse> getUserReviews(@Path("userId") String userId);
+
+    @GET("api/v1/reviews/movie/{movieId}")
+    Call<ReviewsResponse> getMovieReviews(@Path("movieId") String movieId);
 }

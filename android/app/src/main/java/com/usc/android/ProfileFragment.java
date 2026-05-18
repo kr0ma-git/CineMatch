@@ -1,11 +1,13 @@
 package com.usc.android;
 
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RatingBar;
 import android.widget.TextView;
@@ -31,6 +33,7 @@ public class ProfileFragment extends Fragment {
 
     private static final String TAG = "ProfileFragment";
     private TextView tvUsername, tvEmail;
+    private Button btnLogout;
     private SwipeRefreshLayout swipeRefresh;
     private RecyclerView rvMyBookmarks, rvMyReviews;
     private MovieAdapter bookmarkAdapter;
@@ -51,26 +54,42 @@ public class ProfileFragment extends Fragment {
 
         tvUsername = view.findViewById(R.id.tvUsername);
         tvEmail = view.findViewById(R.id.tvEmail);
+        btnLogout = view.findViewById(R.id.btnLogout);
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
 
-        // Initialize Bookmarks with Click to Review and Long Click to Delete
+        // Initialize Bookmarks: Click to Review, Long Click to Delete
         rvMyBookmarks = view.findViewById(R.id.rvMyBookmarks);
         rvMyBookmarks.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
         bookmarkAdapter = new MovieAdapter(bookmarkList, this::onBookmarkClicked, this::showDeleteBookmarkDialog);
         rvMyBookmarks.setAdapter(bookmarkAdapter);
 
-        // Initialize Reviews with Long Click to Delete
+        // Initialize Reviews: Click to Edit, Long Click to Delete
         rvMyReviews = view.findViewById(R.id.rvMyReviews);
         rvMyReviews.setLayoutManager(new LinearLayoutManager(getContext()));
-        reviewAdapter = new ReviewAdapter(reviewList, this::showDeleteReviewDialog);
+        reviewAdapter = new ReviewAdapter(reviewList, this::onReviewClicked, this::showDeleteReviewDialog);
         rvMyReviews.setAdapter(reviewAdapter);
+
+        btnLogout.setOnClickListener(v -> handleLogout());
 
         setupRetrofit();
 
         swipeRefresh.setOnRefreshListener(this::refreshData);
 
-        // Initial Load
         refreshData();
+    }
+
+    private void handleLogout() {
+        new AlertDialog.Builder(getContext())
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setPositiveButton("Logout", (dialog, which) -> {
+                    UserSession.getInstance().setUserId(null);
+                    Intent intent = new Intent(getActivity(), MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void setupRetrofit() {
@@ -175,27 +194,73 @@ public class ProfileFragment extends Fragment {
                     String reviewText = etReview.getText().toString().trim();
                     int rating = (int) ratingBar.getRating();
                     if (!reviewText.isEmpty()) {
-                        postReview(userId, bookmark, reviewText, rating);
+                        postReview(userId, bookmark.getImdbMovieId(), bookmark.getImdbMovieTitle(), reviewText, rating);
                     }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private void postReview(String userId, Bookmark bookmark, String text, int rating) {
-        ReviewRequest request = new ReviewRequest(userId, bookmark.getImdbMovieId(), bookmark.getImdbMovieTitle(), text, rating);
-        apiService.createReview(request).enqueue(new Callback<Void>() {
+    private void onReviewClicked(Review review) {
+        String userId = UserSession.getInstance().getUserId();
+        if (userId == null) return;
+
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
+        EditText etReview = dialogView.findViewById(R.id.etReview);
+        RatingBar ratingBar = dialogView.findViewById(R.id.ratingBar);
+
+        // Pre-fill with current review data
+        etReview.setText(review.getMovieReviewString());
+        ratingBar.setRating(review.getMovieRatingStars());
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("Edit Review: " + review.getImdbMovieTitle())
+                .setView(dialogView)
+                .setPositiveButton("Update", (dialog, which) -> {
+                    String newText = etReview.getText().toString().trim();
+                    int newRating = (int) ratingBar.getRating();
+                    if (!newText.isEmpty()) {
+                        handleReviewUpdate(review.getId(), userId, review.getImdbMovieId(), review.getImdbMovieTitle(), newText, newRating);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void handleReviewUpdate(String oldReviewId, String userId, String movieId, String title, String text, int rating) {
+        // Step 1: Delete old review
+        apiService.deleteReview(oldReviewId).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (isAdded() && response.isSuccessful()) {
-                    Toast.makeText(getContext(), "Review posted!", Toast.LENGTH_SHORT).show();
-                    fetchUserReviews(); // Refresh reviews list
+                    // Step 2: Create new review
+                    postReview(userId, movieId, title, text, rating);
+                } else {
+                    Toast.makeText(getContext(), "Update failed at deletion step", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
-                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
+                if (isAdded()) Toast.makeText(getContext(), "Network error during update", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void postReview(String userId, String movieId, String title, String text, int rating) {
+        ReviewRequest request = new ReviewRequest(userId, movieId, title, text, rating);
+        apiService.createReview(request).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (isAdded() && response.isSuccessful()) {
+                    Toast.makeText(getContext(), "Review updated!", Toast.LENGTH_SHORT).show();
+                    fetchUserReviews(); // Refresh list
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                if (isAdded()) Toast.makeText(getContext(), "Network error posting new review", Toast.LENGTH_SHORT).show();
             }
         });
     }
