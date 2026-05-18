@@ -21,14 +21,28 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="32dp">
 
+                <ImageButton
+                    android:id="@+id/btnBack"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@android:drawable/ic_menu_revert"
+                    android:visibility="gone"
+                    android:contentDescription="Back" />
+
                 <TextView
                     android:id="@+id/tvProfileTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_toEndOf="@id/btnBack"
+                    android:layout_centerVertical="true"
                     android:text="My Profile"
                     android:textSize="28sp"
                     android:textStyle="bold"
-                    android:textColor="#000000"/>
+                    android:textColor="#000000"
+                    android:layout_marginStart="8dp"/>
 
                 <Button
                     android:id="@+id/btnLogout"
@@ -59,6 +73,7 @@
                 android:textColor="#000000"/>
 
             <TextView
+                android:id="@+id/tvEmailLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Email"
@@ -85,7 +100,7 @@
                 android:id="@+id/tvBookmarksTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="My Bookmarks (Long-press to remove)"
+                android:text="Bookmarks"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"
@@ -103,7 +118,7 @@
                 android:id="@+id/tvReviewsTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="My Reviews (Long-press to remove)"
+                android:text="Reviews"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"

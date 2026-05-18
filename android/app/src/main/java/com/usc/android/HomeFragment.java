@@ -1,6 +1,7 @@
 package com.usc.android;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,8 +19,10 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import retrofit2.Call;
@@ -30,6 +33,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class HomeFragment extends Fragment {
 
+    private static final String TAG = "HomeFragment";
     private RecyclerView rvReviews, rvMovies;
     private SwipeRefreshLayout swipeRefresh;
     private LinearLayout emptyStateHome;
@@ -39,6 +43,7 @@ public class HomeFragment extends Fragment {
     private MovieAdapter movieAdapter;
     private final List<Review> reviewList = new ArrayList<>();
     private final List<Bookmark> movieList = new ArrayList<>();
+    private final Map<String, String> userMap = new HashMap<>();
     private ApiService apiService;
 
     @Nullable
@@ -59,11 +64,12 @@ public class HomeFragment extends Fragment {
         tvDiscoverTitle = view.findViewById(R.id.tvDiscoverTitle);
         tvSectionTitle = view.findViewById(R.id.tvSectionTitle);
 
-        // Setup RecyclerViews
+        // Initialize Reviews: Click to view profile
         rvReviews.setLayoutManager(new LinearLayoutManager(getContext()));
-        reviewAdapter = new ReviewAdapter(reviewList);
+        reviewAdapter = new ReviewAdapter(reviewList, this::onReviewClicked, null);
         rvReviews.setAdapter(reviewAdapter);
 
+        // Initialize Movies
         rvMovies.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
         movieAdapter = new MovieAdapter(movieList);
         rvMovies.setAdapter(movieAdapter);
@@ -85,6 +91,15 @@ public class HomeFragment extends Fragment {
         refreshContent();
     }
 
+    private void onReviewClicked(Review review) {
+        // Navigate to the user's profile
+        ProfileFragment profileFragment = ProfileFragment.newInstance(review.getUser());
+        getParentFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, profileFragment)
+                .addToBackStack(null)
+                .commit();
+    }
+
     private void setupRetrofit() {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("http://10.0.2.2:4000/")
@@ -96,8 +111,31 @@ public class HomeFragment extends Fragment {
 
     private void refreshContent() {
         swipeRefresh.setRefreshing(true);
+        fetchUsers();
         fetchMovies();
         fetchReviews();
+    }
+
+    private void fetchUsers() {
+        apiService.getAllUsers().enqueue(new Callback<UsersResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<UsersResponse> call, @NonNull Response<UsersResponse> response) {
+                if (isAdded() && response.isSuccessful() && response.body() != null) {
+                    userMap.clear();
+                    if (response.body().getUserData() != null) {
+                        for (RegisterResponse.UserData user : response.body().getUserData()) {
+                            userMap.put(user.getId(), user.getUsername());
+                        }
+                    }
+                    reviewAdapter.setUserMap(userMap);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<UsersResponse> call, @NonNull Throwable t) {
+                Log.e(TAG, "Failed to fetch users", t);
+            }
+        });
     }
 
     private void fetchMovies() {

@@ -10,7 +10,8 @@ public class RegisterResponse {
     public UserData getUser() { return user; }
 
     public static class UserData {
-        @SerializedName("id")
+        // This handles both "id" (from login) and "_id" (from getAllUsers)
+        @SerializedName(value = "id", alternate = {"_id"})
         private String id;
         private String email;
         private String username;

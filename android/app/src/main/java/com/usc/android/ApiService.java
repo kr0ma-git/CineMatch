@@ -1,5 +1,6 @@
 package com.usc.android;
 
+import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
@@ -16,6 +17,9 @@ public interface ApiService {
 
     @GET("api/v1/users/{id}")
     Call<RegisterResponse> getUserProfile(@Path("id") String userId);
+
+    @GET("api/v1/users")
+    Call<UsersResponse> getAllUsers();
 
     @GET("api/v1/reviews")
     Call<ReviewsResponse> getAllReviews();

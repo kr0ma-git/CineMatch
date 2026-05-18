@@ -9,11 +9,14 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewViewHolder> {
 
     private List<Review> reviewList;
+    private Map<String, String> userMap = new HashMap<>();
     private OnItemLongClickListener longClickListener;
     private OnItemClickListener clickListener;
 
@@ -29,15 +32,15 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
         this.reviewList = reviewList;
     }
 
-    public ReviewAdapter(List<Review> reviewList, OnItemLongClickListener longClickListener) {
-        this.reviewList = reviewList;
-        this.longClickListener = longClickListener;
-    }
-
     public ReviewAdapter(List<Review> reviewList, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
         this.reviewList = reviewList;
         this.clickListener = clickListener;
         this.longClickListener = longClickListener;
+    }
+
+    public void setUserMap(Map<String, String> userMap) {
+        this.userMap = userMap;
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -54,12 +57,11 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.ReviewView
         holder.ratingBar.setRating(review.getMovieRatingStars());
         holder.tvReviewText.setText(review.getMovieReviewString());
         
-        if (review.getUser() != null) {
-            holder.tvAuthorName.setText("— " + review.getUser());
-            holder.tvAuthorName.setVisibility(View.VISIBLE);
-        } else {
-            holder.tvAuthorName.setVisibility(View.GONE);
-        }
+        String userId = review.getUser();
+        String username = userMap.getOrDefault(userId, "Anonymous");
+        
+        holder.tvAuthorName.setText("— " + username);
+        holder.tvAuthorName.setVisibility(View.VISIBLE);
 
         holder.itemView.setOnClickListener(v -> {
             if (clickListener != null) {

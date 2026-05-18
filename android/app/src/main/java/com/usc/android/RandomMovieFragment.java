@@ -23,7 +23,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import retrofit2.Call;
@@ -36,16 +38,16 @@ public class RandomMovieFragment extends Fragment {
 
     private static final String TAG = "RandomMovieFragment";
     private TextView tvMovieTitle, tvReviewsHeader, tvNoReviews;
-    private Button btnRefreshRandom, btnWriteReview;
+    private Button btnRefreshRandom, btnWriteReview, btnBookmark;
     private RecyclerView rvMovieReviews;
     private SwipeRefreshLayout swipeRefresh;
     private ReviewAdapter adapter;
     private List<Review> reviewList = new ArrayList<>();
+    private final Map<String, String> userMap = new HashMap<>();
     private ApiService apiService;
     private String currentMovieId = null;
     private String currentMovieTitle = null;
 
-    // Hardcoded fallback movies
     private List<String[]> hardcodedMovies = new ArrayList<String[]>() {{
         add(new String[]{"The Dark Knight", "tt0468569"});
         add(new String[]{"Inception", "tt1375666"});
@@ -71,54 +73,47 @@ public class RandomMovieFragment extends Fragment {
         tvNoReviews = view.findViewById(R.id.tvNoReviews);
         btnRefreshRandom = view.findViewById(R.id.btnRefreshRandom);
         btnWriteReview = view.findViewById(R.id.btnWriteReview);
+        btnBookmark = view.findViewById(R.id.btnBookmark);
         rvMovieReviews = view.findViewById(R.id.rvMovieReviews);
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
 
-        // Switching logic is now on swipe-left, so we hide the button
         btnRefreshRandom.setVisibility(View.GONE);
 
         rvMovieReviews.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new ReviewAdapter(reviewList);
+        adapter = new ReviewAdapter(reviewList, this::onReviewClicked, null);
         rvMovieReviews.setAdapter(adapter);
 
         setupRetrofit();
 
         btnWriteReview.setOnClickListener(v -> showReviewDialog());
+        btnBookmark.setOnClickListener(v -> handleBookmark());
 
-        // Setup Gesture Detector for Swipe Left
         final GestureDetector gestureDetector = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                 if (e1 != null && e2 != null) {
                     float diffX = e2.getX() - e1.getX();
                     float diffY = e2.getY() - e1.getY();
-                    // Detect horizontal swipe
-                    if (Math.abs(diffX) > Math.abs(diffY)) {
-                        if (Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
-                            if (diffX < 0) { // Swipe Left
-                                pickRandomMovie();
-                                return true;
-                            }
-                        }
+                    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
+                        if (diffX < 0) { pickRandomMovie(); return true; }
                     }
                 }
                 return false;
             }
         });
 
-        // Delegate touch events from the main container and the scroll view
         view.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
-        
-        // Setup Pull-to-refresh to refresh reviews for the CURRENTly displayed movie
-        swipeRefresh.setOnRefreshListener(() -> {
-            if (currentMovieId != null) {
-                fetchReviews(currentMovieId);
-            } else {
-                pickRandomMovie();
-            }
-        });
+        swipeRefresh.setOnRefreshListener(this::refreshData);
 
-        pickRandomMovie();
+        refreshData();
+    }
+
+    private void onReviewClicked(Review review) {
+        ProfileFragment profileFragment = ProfileFragment.newInstance(review.getUser());
+        getParentFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, profileFragment)
+                .addToBackStack(null)
+                .commit();
     }
 
     private void setupRetrofit() {
@@ -129,19 +124,38 @@ public class RandomMovieFragment extends Fragment {
         apiService = retrofit.create(ApiService.class);
     }
 
-    private void pickRandomMovie() {
+    private void refreshData() {
         swipeRefresh.setRefreshing(true);
-        
+        fetchUsers();
+        pickRandomMovie();
+    }
+
+    private void fetchUsers() {
+        apiService.getAllUsers().enqueue(new Callback<UsersResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<UsersResponse> call, @NonNull Response<UsersResponse> response) {
+                if (isAdded() && response.isSuccessful() && response.body() != null) {
+                    userMap.clear();
+                    if (response.body().getUserData() != null) {
+                        for (RegisterResponse.UserData user : response.body().getUserData()) {
+                            userMap.put(user.getId(), user.getUsername());
+                        }
+                    }
+                    adapter.setUserMap(userMap);
+                }
+            }
+            @Override
+            public void onFailure(@NonNull Call<UsersResponse> call, @NonNull Throwable t) {}
+        });
+    }
+
+    private void pickRandomMovie() {
         Random rand = new Random();
-        // 40% chance to pick a hardcoded movie immediately for variety
-        if (rand.nextInt(10) < 4) {
-            useHardcodedRandom();
-            return;
-        }
+        if (rand.nextInt(10) < 4) { useHardcodedRandom(); return; }
 
         apiService.getAllBookmarks().enqueue(new Callback<BookmarksResponse>() {
             @Override
-            public void onResponse(Call<BookmarksResponse> call, Response<BookmarksResponse> response) {
+            public void onResponse(@NonNull Call<BookmarksResponse> call, @NonNull Response<BookmarksResponse> response) {
                 if (isAdded()) {
                     if (response.isSuccessful() && response.body() != null && !response.body().getBookmarks().isEmpty()) {
                         List<Bookmark> bookmarks = response.body().getBookmarks();
@@ -152,12 +166,9 @@ public class RandomMovieFragment extends Fragment {
                     }
                 }
             }
-
             @Override
-            public void onFailure(Call<BookmarksResponse> call, Throwable t) {
-                if (isAdded()) {
-                    useHardcodedRandom();
-                }
+            public void onFailure(@NonNull Call<BookmarksResponse> call, @NonNull Throwable t) {
+                if (isAdded()) useHardcodedRandom();
             }
         });
     }
@@ -177,10 +188,10 @@ public class RandomMovieFragment extends Fragment {
     private void fetchReviews(String movieId) {
         apiService.getMovieReviews(movieId).enqueue(new Callback<ReviewsResponse>() {
             @Override
-            public void onResponse(Call<ReviewsResponse> call, Response<ReviewsResponse> response) {
+            public void onResponse(@NonNull Call<ReviewsResponse> call, @NonNull Response<ReviewsResponse> response) {
                 if (isAdded()) {
                     reviewList.clear();
-                    if (response.isSuccessful() && response.body() != null && response.body().getReviews() != null && !response.body().getReviews().isEmpty()) {
+                    if (response.isSuccessful() && response.body() != null && response.body().getReviews() != null) {
                         reviewList.addAll(response.body().getReviews());
                         tvReviewsHeader.setVisibility(View.VISIBLE);
                         tvNoReviews.setVisibility(View.GONE);
@@ -192,60 +203,63 @@ public class RandomMovieFragment extends Fragment {
                     swipeRefresh.setRefreshing(false);
                 }
             }
+            @Override
+            public void onFailure(@NonNull Call<ReviewsResponse> call, @NonNull Throwable t) {
+                if (isAdded()) swipeRefresh.setRefreshing(false);
+            }
+        });
+    }
+
+    private void handleBookmark() {
+        String userId = UserSession.getInstance().getUserId();
+        if (userId == null) {
+            Toast.makeText(getContext(), "Log in to bookmark", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        BookmarkRequest request = new BookmarkRequest(userId, currentMovieId, currentMovieTitle, "movie");
+        apiService.createBookmark(request).enqueue(new Callback<BookmarksResponse>() {
+            @Override
+            public void onResponse(Call<BookmarksResponse> call, Response<BookmarksResponse> response) {
+                if (isAdded()) {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(getContext(), "Bookmarked!", Toast.LENGTH_SHORT).show();
+                    } else if (response.code() == 409) {
+                        Toast.makeText(getContext(), "Already bookmarked", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
 
             @Override
-            public void onFailure(Call<ReviewsResponse> call, Throwable t) {
-                if (isAdded()) {
-                    reviewList.clear();
-                    adapter.notifyDataSetChanged();
-                    tvReviewsHeader.setVisibility(View.GONE);
-                    tvNoReviews.setVisibility(View.VISIBLE);
-                    swipeRefresh.setRefreshing(false);
-                }
+            public void onFailure(Call<BookmarksResponse> call, Throwable t) {
+                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void showReviewDialog() {
         String userId = UserSession.getInstance().getUserId();
-        if (userId == null) {
-            Toast.makeText(getContext(), "Log in to review", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
-        EditText etReview = dialogView.findViewById(R.id.etReview);
-        RatingBar ratingBar = dialogView.findViewById(R.id.ratingBar);
-
-        new AlertDialog.Builder(getContext())
-                .setTitle("Review " + currentMovieTitle)
-                .setView(dialogView)
-                .setPositiveButton("Post", (dialog, which) -> {
-                    String reviewText = etReview.getText().toString().trim();
-                    int rating = (int) ratingBar.getRating();
-                    if (!reviewText.isEmpty()) {
-                        postReview(userId, reviewText, rating);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        if (userId == null) return;
+        View v = LayoutInflater.from(getContext()).inflate(R.layout.dialog_review, null);
+        EditText et = v.findViewById(R.id.etReview);
+        RatingBar rb = v.findViewById(R.id.ratingBar);
+        new AlertDialog.Builder(getContext()).setTitle("Review " + currentMovieTitle).setView(v)
+                .setPositiveButton("Post", (d, w) -> postReview(userId, et.getText().toString(), (int) rb.getRating()))
+                .setNegativeButton("Cancel", null).show();
     }
 
     private void postReview(String userId, String text, int rating) {
-        ReviewRequest request = new ReviewRequest(userId, currentMovieId, currentMovieTitle, text, rating);
-        apiService.createReview(request).enqueue(new Callback<Void>() {
+        apiService.createReview(new ReviewRequest(userId, currentMovieId, currentMovieTitle, text, rating))
+                .enqueue(new Callback<Void>() {
             @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
+            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
                 if (isAdded() && response.isSuccessful()) {
                     Toast.makeText(getContext(), "Review posted!", Toast.LENGTH_SHORT).show();
-                    fetchReviews(currentMovieId); // Refresh reviews list for current movie
+                    fetchReviews(currentMovieId);
                 }
             }
-
             @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                if (isAdded()) Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {}
         });
     }
 }
